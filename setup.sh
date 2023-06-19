@@ -11,9 +11,10 @@ ui_print() { echo -e "ui_print $1\nui_print" > $OUTFD; }
 mv /data/droidian/data/* /data/;
 
 # resize rootfs
-ui_print "Resizing rootfs to 8GB";
+ui_print "Resizing rootfs to maximum";
+NEW_KBYTES=$(df --output=avail -BK /data | tail -n1)
 e2fsck -fy /data/rootfs.img
-resize2fs -f /data/rootfs.img 8G
+resize2fs -f /data/rootfs.img $NEW_KBYTES
 
 mkdir /s;
 mkdir /r;
@@ -22,17 +23,14 @@ mkdir /r;
 mount /data/rootfs.img /r;
 
 # mount android gsi
-mount /r/var/lib/lxc/android/android-rootfs.img /s
+mount /r/var/lib/lxc/android/android-rootfs.img /s;
 
 # Set udev rules
 ui_print "Setting udev rules";
-cat /s/ueventd*.rc /vendor/ueventd*.rc | grep ^/dev | sed -e 's/^\/dev\///' | awk '{printf "ACTION==\"add\", KERNEL==\"%s\", OWNER=\"%s\", GROUP=\"%s\", MODE=\"%s\"\n",$1,$3,$4,$2}' | sed -e 's/\r//' > /data/70-droidian.rules;
+cat /s/ueventd*.rc /vendor/ueventd*.rc | grep ^/dev | sed -e 's/^\/dev\///' | awk '{printf "ACTION==\"add\", KERNEL==\"%s\", OWNER=\"%s\", GROUP=\"%s\", MODE=\"%s\"\n",$1,$3,$4,$2}' | sed -e 's/\r//' > /r/etc/udev/rules.d/70-$VENDOR_DEVICE_PROP.rules;
 
 # umount android gsi
 umount /s;
-
-# move udev rules inside rootfs
-mv /data/70-droidian.rules /r/etc/udev/rules.d/70-$VENDOR_DEVICE_PROP.rules;
 
 # function to get the partitions where to flash imgs to.
 get_partitions() {
